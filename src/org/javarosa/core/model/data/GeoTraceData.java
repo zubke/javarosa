@@ -16,16 +16,14 @@
 
 package org.javarosa.core.model.data;
 
+import org.javarosa.core.util.externalizable.ExtUtil;
+import org.javarosa.core.util.externalizable.PrototypeFactory;
+import org.javarosa.xpath.IExprDataType;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-
-import org.javarosa.core.util.ArrayUtilities;
-import org.javarosa.core.util.externalizable.ExtUtil;
-import org.javarosa.core.util.externalizable.PrototypeFactory;
-import org.javarosa.xpath.IExprDataType;
 
 /**
  * A response to a question requesting an GeoTrace Value.
@@ -195,15 +193,11 @@ public class GeoTraceData implements IAnswerData, IExprDataType {
         GeoTraceData d = new GeoTraceData();
         for (String part : parts ) {
             String[] pointParts = part.trim().split(" ");
-            boolean first = true;
             StringBuilder b = new StringBuilder();
-            for (String pointPart : pointParts ) {
-                if ( !first ) {
-                    b.append(" ");
-                }
-                first = false;
-                b.append(pointPart.trim());
-            }
+            b.append(pointParts[0]).append(' ');
+            b.append(pointParts[1]).append(' ');
+            b.append(pointParts[2]).append(' ');
+            b.append(pointParts[3]).append(' ');
             // allow for arbitrary surrounding whitespace
             d.points.add(new GeoPointLog((double[]) t.cast(new UncastData(b.toString())).getValue(), pointParts[4]));
         }

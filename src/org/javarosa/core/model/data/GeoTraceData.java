@@ -20,7 +20,9 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
+import org.javarosa.core.util.ArrayUtilities;
 import org.javarosa.core.util.externalizable.ExtUtil;
 import org.javarosa.core.util.externalizable.PrototypeFactory;
 import org.javarosa.xpath.IExprDataType;
@@ -44,18 +46,33 @@ public class GeoTraceData implements IAnswerData, IExprDataType {
      *
      */
     public static class GeoTrace {
-        public final ArrayList<double[]> points;
+        public final ArrayList<GeoPointLog> points;
 
         public GeoTrace() {
             points = new ArrayList<>();
         }
 
-        public GeoTrace(ArrayList<double[]> points) {
+        public GeoTrace(ArrayList<GeoPointLog> points) {
             this.points = points;
         }
     }
 
-    public final ArrayList<GeoPointData> points = new ArrayList<>();
+    public static class GeoPointLog {
+        public final double[] point;
+        public final String timestamp;
+
+        public GeoPointLog() {
+            point = new double[4];
+            timestamp = null;
+        }
+
+        public GeoPointLog(double[] point, String timestamp) {
+            this.point = point;
+            this.timestamp = timestamp;
+        }
+    }
+
+    public final ArrayList<GeoPointLog> points = new ArrayList<>();
 
 
     /**
@@ -72,14 +89,14 @@ public class GeoTraceData implements IAnswerData, IExprDataType {
      * @param data
      */
     public GeoTraceData(GeoTraceData data) {
-        for ( GeoPointData p : data.points ) {
-            points.add(new GeoPointData(p));
+        for (GeoPointLog p : data.points ) {
+            points.add(new GeoPointLog(p.point, p.timestamp));
         }
     }
 
     public GeoTraceData(GeoTrace atrace) {
-        for ( double[] da : atrace.points ) {
-            points.add(new GeoPointData(da));
+        for (GeoPointLog da : atrace.points ) {
+            points.add(new GeoPointLog(da.point, da.timestamp));
         }
    }
 
@@ -97,12 +114,13 @@ public class GeoTraceData implements IAnswerData, IExprDataType {
     public String getDisplayText() {
         StringBuilder b = new StringBuilder();
         boolean first = true;
-        for ( GeoPointData p : points ) {
+        for ( GeoPointLog p : points ) {
             if ( !first ) {
                 b.append("; ");
             }
             first = false;
-            b.append(p.getDisplayText());
+            b.append(new GeoPointData(p.point).getDisplayText());
+            b.append(' ').append(p.timestamp);
         }
         return b.toString();
     }
@@ -110,9 +128,10 @@ public class GeoTraceData implements IAnswerData, IExprDataType {
 
     @Override
     public Object getValue() {
-        ArrayList<double[]> pts = new ArrayList<>();
-        for ( GeoPointData p : points ) {
-            pts.add((double[])p.getValue());
+        ArrayList<GeoPointLog> pts = new ArrayList<>();
+        for (GeoPointLog p : points ) {
+            GeoPointLog log = new GeoPointLog(p.point, p.timestamp);
+            pts.add(log);
         }
         return new GeoTrace(pts);
     }
@@ -129,9 +148,9 @@ public class GeoTraceData implements IAnswerData, IExprDataType {
             o = v.getValue();
         }
         GeoTrace gs = (GeoTrace) o;
-        ArrayList<GeoPointData> temp = new ArrayList<>();
-        for ( double[] da : gs.points ) {
-            temp.add(new GeoPointData(da));
+        ArrayList<GeoPointLog> temp = new ArrayList<>();
+        for (GeoPointLog log : gs.points ) {
+            temp.add(new GeoPointLog(log.point, log.timestamp));
         }
         points.clear();
         points.addAll(temp);
@@ -145,7 +164,8 @@ public class GeoTraceData implements IAnswerData, IExprDataType {
         for ( int i = 0 ; i < len ; ++i ) {
             GeoPointData t = new GeoPointData();
             t.readExternal(in, pf);
-            points.add(t);
+            String timestamp = ExtUtil.readString(in);
+            points.add(new GeoPointLog((double[]) t.getValue(), timestamp));
         }
     }
 
@@ -153,8 +173,9 @@ public class GeoTraceData implements IAnswerData, IExprDataType {
     @Override
     public void writeExternal(DataOutputStream out) throws IOException {
         ExtUtil.writeNumeric(out, points.size());
-        for (GeoPointData t : points) {
-            t.writeExternal(out);
+        for (GeoPointLog t : points) {
+            new GeoPointData(t.point).writeExternal(out);
+            ExtUtil.writeString(out, t.timestamp);
         }
     }
 
@@ -172,9 +193,19 @@ public class GeoTraceData implements IAnswerData, IExprDataType {
         GeoPointData t = new GeoPointData();
 
         GeoTraceData d = new GeoTraceData();
-        for ( String part : parts ) {
+        for (String part : parts ) {
+            String[] pointParts = data.value.trim().split(" ");
+            boolean first = true;
+            StringBuilder b = new StringBuilder();
+            for (String pointPart : pointParts ) {
+                if ( !first ) {
+                    b.append(" ");
+                }
+                first = false;
+                b.append(pointPart.trim());
+            }
             // allow for arbitrary surrounding whitespace
-            d.points.add(t.cast(new UncastData(part.trim())));
+            d.points.add(new GeoPointLog((double[]) t.cast(new UncastData(b.toString())).getValue(), pointParts[4]));
         }
         return d;
     }
@@ -194,8 +225,8 @@ public class GeoTraceData implements IAnswerData, IExprDataType {
         }
         // return the worst accuracy...
         double maxValue = 0.0;
-        for ( GeoPointData p : points ) {
-            maxValue = Math.max(maxValue, p.toNumeric());
+        for (GeoPointLog p : points ) {
+            maxValue = Math.max(maxValue, new GeoPointData(p.point).toNumeric());
         }
         return maxValue;
     }

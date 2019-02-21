@@ -194,7 +194,7 @@ public class GeoTraceData implements IAnswerData, IExprDataType {
 
         GeoTraceData d = new GeoTraceData();
         for (String part : parts ) {
-            String[] pointParts = data.value.trim().split(" ");
+            String[] pointParts = part.trim().split(" ");
             boolean first = true;
             StringBuilder b = new StringBuilder();
             for (String pointPart : pointParts ) {
